@@ -10,17 +10,21 @@ type SocketPool struct {
 	mu     sync.Mutex
 	conns  []net.Conn
 	size   int
-	addr   string
+	factory SocketFactory
 	active int
 }
 
-func NewSocketPool(size int, addr string) (*SocketPool, error) {
+type SocketFactory interface {
+	CreateSocket() (net.Conn, error)
+}
+
+func NewSocketPool(size int, factory SocketFactory) (*SocketPool, error) {
 	conns := make([]net.Conn, size)
 	return &SocketPool{
 		conns:  conns,
 		size:   size,
-		addr:   addr,
 		active: 0,
+		factory: factory,
 	}, nil
 }
 
@@ -41,7 +45,7 @@ func (p *SocketPool) Get() (net.Conn, error) {
 	conn := p.conns[p.active]
 	if conn == nil {
 		var err error
-		conn, err = net.Dial("tcp", p.addr)
+		conn, err = p.factory.CreateSocket()
 		if err != nil {
 			return nil, err
 		}
